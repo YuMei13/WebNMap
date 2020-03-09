@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!--link to leaflet css style sheet-->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+        integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+        crossorigin=""/>
+  
+    <!--link to leaflet package-->
+    <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+        integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+        crossorigin=""></script>
+    
+
+    <script charset="utf-8" src="https://d3js.org/d3.v4.min.js"></script>
+    <script charset="utf-8" src="https://cdnjs.cloudflare.com/ajax/libs/dimple/2.3.0/dimple.latest.min.js"></script>
+   
+
+    <!--link to jquery package-->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    
+<!--
+    <script charset="utf-8" src="https://unpkg.com/d3@5.6.0/dist/d3.min.js"></script>
+    
+-->
+    <script src="UKbon.geojson"></script>
+    
+    <!-- by using css style-->
+    <link rel="stylesheet" href="energyB.css">
+    
+    
+</head>
+    
+<body>
+    
+        
+    <div id ="myMap"></div>
+    <div id="chartContainer">
+      
+    <p id="charttitle">Percentage of Electricity Consumption of County</p>
+    <p id="chartsubhead">From 2015-2018. Data UK </p>
+    <p><select id="County"><option>Change County Here:</option></select></p>
+
+    </div>
+
+<script>
+    
+   $(document).ready(function(){
+       
+       var ukjson;
+       
+       var map = L.map('myMap').setView([55, -2.5], 6);
+       
+       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 18,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+      
+    
+       $.getJSON("UKboun.geojson")
+            .done(function(data){
+           var info = getData(data);
+           createStyle(info.changeYear,data);
+           createLegend(info.min,info.max);
+           createSlider(info.changeYear);
+           
+       })
+            .fail(function(){alert("having problem!!")});
+       
+       
+       
+       function getData(data){
+           var changeYear=[];
+           var min = Infinity;
+           var max = -Infinity;
+           
+           
+           for (var feature in data.features){
+               
+               var properties = data.features[feature].properties;
+               
+               for (var attribute in properties){
+                   if (attribute =='2015'||
+                       attribute =='2016'||
+                       attribute =='2017'||
+                       attribute =='2018'
+                      ){
+                       if($.inArray(attribute,changeYear)===-1){
+                           changeYear.push(attribute);
+                       }
+                       if(properties[attribute]<min){
+                           min = properties[attribute];
+                       }
+                       if (properties[attribute]>max){
+                           max=properties[attribute];
+                       }
+                   }
+               }
+           }
+           
+           return{
+               changeYear :changeYear,
+               min:min,
+               max:max
+           }
+        }
+       
+       function createStyle(changeYear,data){
+           
+           ukjson =L.geoJson(data,{
+               style:function(feature){
+                   return {
+                        fillColor: "green",
+                        weight: 2,
+                        opacity: 1,
+                        color: 'white',
+                        dashArray: '3',
+                        fillOpacity: 0.7
+                   }
+                   
+               },
+               onEachFeature:function(feature,layer){
+                   layer.on({
+                       mouseover:
+                       function(e){
+                           this.openPopup();
+                           this.setStyle({weight:4,
+                                        color: 'grey',
+                                        dashArray: '',
+                                        fillOpacity: 0.5});
+                           if(!L.Browser.ie && !L.Browser.opera){
+                layer.bringToFront();
+            }
+                       },
+                            mouseout:
+                            function(e){
+                           this.closePopup();
+                           this.setStyle({weight:2,
+                                        color: 'white',
+                                        dashArray: '3',
+                                        fillOpacity: 0.7});
+                       }
+                       }
+                   );
+               }
+           }).addTo(map);
+       
+       updateStyle(changeYear[0]);
+       
+       }
+       
+       function updateStyle(changeYear){
+           ukjson.eachLayer(function(layer){
+               var props = layer.feature.properties;
+               var colors = getCol(props[changeYear]);
+
+               var popcontent ="<b>" + props.lad15nm + "</b>"+ "<br>"+ 
+                   "2015 Consumption: "+ Math.round(props.X2015) + " kWh"+"<br>"+ 
+                   "2016 Consumption: "+ Math.round(props.X2016) + " kWh"+"<br>"+ 
+                   "2017 Consumption: "+ Math.round(props.X2017) + " kWh"+"<br>"+
+                   "2018 Consumption: "+ Math.round(props.X2018) + " kWh";
+            
+            layer.setStyle({fillColor:colors});
+            layer.bindPopup(popcontent);
+           });
+       }
+       
+       function getCol(value){
+           return value >0.01 ? 'red' :
+                  value >0   ? 'orange':
+                  value > -0.01 ? 'lightgreen' :
+                                'green';
+       }
+       
+       
+       function createLegend(min, max){
+           var legend =L.control({position:'bottomleft'});
+    
+        legend.onAdd = function (map){
+        var div = L.DomUtil.create('div','legend'),
+            grades = [0.01,0,-0.01,-0.1],
+            labels = [];
+        var span = L.DomUtil.create('span','legendName');
+        
+        div.appendChild(span);
+        
+        span.innerHTML='Increase Rate'+'<br>';
+        
+        for (var i =0 ; i<grades.length; i++){
+            div.innerHTML +=
+                '<i style="background:'+getCol(grades[i]+0.001)+'"></i>'+
+                 '&#160;'+grades[i]+(i==0 ? ' &ndash; '+Math.round(max*1000)/1000+'<br>' : i>0 & i< grades.length-1 ? ' &ndash; '+grades[i-1]+'<br>': ' &ndash; '+ -0.01)
+        }
+        return div;
+       };
+       legend.addTo(map);
+       }
+       
+       
+       function createSlider(changeYear){
+           
+           var sliderControl = L.control({position:'topleft'});
+           
+           sliderControl.onAdd = function (map){
+               var div = L.DomUtil.create("div","slider-container")
+               var slider= L.DomUtil.create("input", "range-slider");
+               var title = L.DomUtil.create("p","title");
+               var span = L.DomUtil.create("span", "year");
+               
+               title.innerHTML ='Electricity Consumption Change Rate in the UK Through 2015 to 2018';
+               span.innerHTML='Year'+'&nbsp;';
+               
+               div.append(title);
+               
+               div.appendChild(slider);
+               
+               div.append(span);
+               
+               L.DomEvent.addListener(slider,'mousedown',function(e){
+                   L.DomEvent.stopPropagation(e);
+               });
+               
+               $(slider).attr({'type':'range',
+                               'max':2018,
+                               'min':2015,
+                               'step':1,
+                               'value':String(changeYear[0])})
+                        .on('input change',function(){
+                   updateStyle($(this).val().toString());
+                        
+                   $(".slider-legend").text(this.value);
+                        
+               });
+               
+               
+               
+               return div;
+               
+               
+           }
+           
+           sliderControl.addTo(map)
+           createSliderLegend(changeYear[0]);
+       }
+       
+       function createSliderLegend(startChangeYear){
+           var sliderLegend =L.control({position:'topleft'});
+           
+           sliderLegend.onAdd = function(map){
+               var output = L.DomUtil.create("output","slider-legend");
+               
+               $(output).text(startChangeYear)
+               
+               var divcon = document.getElementsByClassName('slider-container')
+               $(output).appendTo($(divcon));
+               return divcon;
+           }
+           
+           //return divcon;
+           sliderLegend.addTo(map);
+       }
+    
+    //d3 starts here   
+    
+    var myRenderer = L.svg({ padding: 0.5 });
+    myRenderer.addTo(map);
+    const svg = d3.select('#myMap').select('svg');
+    
+     
+    const rect=svg.append('rect');
+
+    rect.attr('height',330)
+        .attr('width', 400)
+        .attr('fill', "#f7fafa")
+        .attr('x',900)
+        .attr('y',0);
+    
+    const select = document.getElementById("County");
+    
+       //document.getElementsByTagName('option').innerHTML = "Change County Here:";
+    //var eleData=[];
+    d3.csv("sumR.csv",function(eleData){
+     
+        var chartData;
+        
+        for(var i = 0; i < eleData.length; i++) {
+            var option = document.createElement("option");
+            option.textContent=eleData[i].County;
+            option.value = eleData[i].Index;
+            $(option).appendTo($(select));
+            }
+        //return select;
+        
+        
+        function SetEleData(index) {
+          
+                console.log(eleData[index]); // Show the data of the row in the console
+
+                document.getElementById("charttitle").innerHTML = eleData[index].County + " Electricity Consumption Percentage"; // The name of the city and country is inserted into the chart title
+
+                // Dimple requires each data point on a time series to be a separate row. Below we insert the population data from the CityData array into a new array of JSON objects in the required format
+                chartdata = [
+                  { "Year":"2015","Percentage":(eleData[index].y2015)},
+                  { "Year":"2016","Percentage":(eleData[index].y2016)},
+                  { "Year":"2017","Percentage":(eleData[index].y2017)},
+                  { "Year":"2018","Percentage":(eleData[index].y2018)}
+                ];
+
+        }
+        SetEleData(0);
+        
+        
+        var myChart = new dimple.chart(svg, chartdata);  // Create the chart
+        myChart.setBounds(950, 130, 300, 150);            // Set the chart bounds within the svg container
+
+        myChart.defaultColors = [
+            new dimple.color("#54aae3"),
+            new dimple.color("#54aae3")
+        ];
+        
+        var x = myChart.addTimeAxis("x", "Year", "%Y", "%Y");  // Define the x axis. The latter statements define the date format which we want to be year only
+        x.timeInterval = 1;  
+
+        var y = myChart.addMeasureAxis("y", "Percentage"); // Define the y axis
+        y.ticks = 6;
+
+        var s = myChart.addSeries("County", dimple.plot.line);
+        s.lineMarkers = true;
+        s.interpolation = "cardinal";
+
+        myChart.draw(500);
+        
+        svg.selectAll("path.dimple-proj").style("stroke-dasharray", "2"); // Some minor stying changes using the svg selectAll statement. Make the projected data a dashed line and the grid colour lighter.
+        svg.selectAll("path.domain").style("stroke", "#CCC");
+        svg.selectAll("g.tick line").style("stroke", "#CCC");
+        
+        
+        document.getElementById("County").onchange = function() {
+           var x = document.getElementById("County").value;
+           console.log(x);
+           SetEleData(x);
+           svg.selectAll(".dimple-marker,.dimple-marker-back").remove();
+           myChart.data = chartdata;
+           myChart.draw(500);
+         }  
+        
+    });
+       
+   
+   });
+    
+
+</script>
+
+</body>
+</html>
