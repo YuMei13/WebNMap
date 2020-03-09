@@ -1,0 +1,2 @@
+This is an interavtive map created by combining leaflet and dimple library.
+In order to run this html sucessfully a UK geojson file is needed!
