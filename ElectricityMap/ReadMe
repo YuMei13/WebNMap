@@ -1,2 +1,2 @@
 This is an interavtive map created by using leaflet and dimple library.
-In order to run this html sucessfully a UK geojson file is needed!
+In order to run this html sucessfully a UK geojson file and electricity consumption data are needed!
