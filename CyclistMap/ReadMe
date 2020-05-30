@@ -1,0 +1,3 @@
+This is a map specifically for cyclists. The function includes route planning, elevation profile, CO2 cut, calories burnt, 
+bike sharing points information, and hourly air quality information in London.
+This map is rooted on Mapbox, so in order to run this code you will need your Mapbox API key, and Tfl API key.
